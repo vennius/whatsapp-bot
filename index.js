@@ -10,6 +10,7 @@ const { checkIsBlocked } = require("./lib/helper")
 
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
 
+
 async function startSesi() {
   process.on("unhandledRejection", error => console.error(error))
   const { state, saveCreds } = await useMultiFileAuthState("./session")
@@ -25,7 +26,7 @@ async function startSesi() {
     defaultQueryTimeoutMs: undefined,
     logger: pino({ level: "fatal" }),
     auth: state,
-    browser: ["Chrome (Linux)", "", ""]
+    browser: ["Safari (Linux)", "safari", "1.0.0"]
   }
   const x = makeWASocket(connectionUpdate)
 
@@ -35,7 +36,7 @@ async function startSesi() {
     store.writeToFile("./store.json")
   }, 10000)
 
-  // Jangan Di Apa Apain Nanti Error
+  // pairing code system
   if (useCODE && !x.user && !x.authState.creds.registered) {
     async function StartYtta() {
       const rl = readline.createInterface({
@@ -91,10 +92,7 @@ async function startSesi() {
         }
         if (msg.key.remoteJid === 'status@broadcast') {
           if (msg.message?.protocolMessage) return
-          console.log(`Lihat Status ${msg.pushName} ${msg.key.participant.split('@')[0]}`)
-          await x.readMessages([msg.key])
-          await delay(1000)
-          return await x.readMessages([msg.key])
+          return console.log(`Update status dari ${msg.pushName} ${msg.key.participant.split('@')[0]}`)
         }
 
         const type = Object.keys(msg.message)[0]
@@ -112,7 +110,7 @@ async function startSesi() {
   x.number = x.user?.["id"]["split"](":")[0] + "@s.whatsapp.net"
   x.owner = {
     "name": `Bot WhatsApp`,
-    "number": `61895412604276@s.whatsapp.net`
+    "number": `62895412604276@s.whatsapp.net`
   }
   return x
 }

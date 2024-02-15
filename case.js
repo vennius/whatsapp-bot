@@ -2,8 +2,10 @@ const { downloadMediaMessage } = require("@whiskeysockets/baileys")
 const { generative, generateImage } = require("./lib/ai")
 const hx = require('hxz-api');
 const { writeExifImg } = require("./lib/exif");
-const Replicate = require("replicate");
-const { default: axios } = require("axios");
+const { Reactor } = require("./lib/helper");
+const yts = require("yt-search");
+const ytdl = require("ytdl-core");
+const fs = require("fs");
 
 module.exports = async (x, msg, store) => {
   const type = Object.keys(msg.message)[0]
@@ -14,48 +16,51 @@ module.exports = async (x, msg, store) => {
   const args = body.split(" "); args.shift();
   const from = msg.key.remoteJid
   const { imageMessage } = msg.message;
+  const reactor = new Reactor(from, x.sendMessage, msg.key);
 
   if (isCmd) {
     console.log(require("chalk").black(require("chalk").bgGreen(`Command ${prefix + command} `)), require("chalk").black(require("chalk").bgWhite(`Dari ${msg.pushName}`)))
   }
 
-  const reply = (teks) => {
-    x.sendMessage(from, { text: teks }, { quoted: msg })
-  }
-
 
   switch (command) {
-    case "gmbr":
-      const media = await downloadMediaMessage(msg, "buffer");
-      x.sendMessage(from, {
-        image: media,
-        caption: "gmbrrr"
-      })
+    case "play":
+      await reactor.loading()
+      let rus = await yts(args.join(" "))
+      if (rus.all.length == "0") return await x.sendMessage(from, { text: "gak boleh kosong" }, { quoted: msg })
+      let data = await rus.all.filter(v => v.type == 'video')
+      const video = data[0]
+      let mp3File = `audio/${Math.floor(Math.random() * 10000000)}.mp3`
+      await ytdl(video.url, { filter: 'audioonly' })
+        .pipe(fs.createWriteStream(mp3File))
+        .on("finish", async () => {
+          await x.sendMessage(from, { audio: fs.readFileSync(mp3File), mimetype: 'audio/mp4' }, { quoted: msg })
+        })
+      await reactor.succes()
       break;
     case "gen":
       if (args.length < 1) break;
-      const tempMsg = await x.sendMessage(from, { text: "Sabar..." }, { quoted: msg })
+      // const tempMsg = await x.sendMessage(from, { text: "Sabar..." }, { quoted: msg })
+      await reactor.loading()
       try {
 
         const answer = await generative(args.join(" "))
         await x.sendMessage(from, {
           text: answer,
-          edit: tempMsg.key
+          // edit: tempMsg.key
         })
+        await reactor.succes()
       } catch (err) {
-        await x.sendMessage(from, {
-          text: "Input yang dimasukkan illegal",
-          edit: tempMsg.key
-        })
+        await reactor.error()
       }
       break;
     case "lirik":
-      const tempMsg1 = await x.sendMessage(from, { text: "Sabar..." }, { quoted: msg })
+      await reactor.loading()
       const res = await hx.lirik(args.join(" "))
       await x.sendMessage(from, {
         text: res.lirik,
-        edit: tempMsg1.key
       })
+      await reactor.succes()
       break;
     case "sticker":
       if (!imageMessage) return
@@ -73,12 +78,14 @@ module.exports = async (x, msg, store) => {
         }
       })
       break;
-    case "sunhua":
+    case "genjpg":
+      await reactor.loading()
       const image = await generateImage(args.join(" ") + " cinematic, aesthetic, dramatic.");
       await x.sendMessage(from, {
         image,
         caption: `${args.join(" ")}`
       })
+      await reactor.succes()
       break;
   }
 }
